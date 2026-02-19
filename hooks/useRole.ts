@@ -1,16 +1,21 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { checkUserRole, UserRole } from '@/lib/roleGuard'
+import { checkUserRole, UserRole, isAdminRole, isPastoralRole } from '@/lib/roleGuard'
 import { useAuth } from './useAuth'
 
 interface UseRoleReturn {
   role: UserRole | null
   loading: boolean
+  isSuperAdmin: boolean
+  isRegionalAdmin: boolean
+  isZoneAdmin: boolean
+  isDepartmentAdmin: boolean
   isAdmin: boolean
   isRegionPastor: boolean
   isZonePastor: boolean
   isDeacon: boolean
+  isViewer: boolean
 }
 
 export function useRole(): UseRoleReturn {
@@ -37,10 +42,14 @@ export function useRole(): UseRoleReturn {
   return {
     role,
     loading,
-    isAdmin: role === 'admin',
+    isSuperAdmin: role === 'super_admin',
+    isRegionalAdmin: role === 'regional_admin',
+    isZoneAdmin: role === 'zone_admin',
+    isDepartmentAdmin: role === 'department_admin',
+    isAdmin: isAdminRole(role || 'viewer'),
     isRegionPastor: role === 'region_pastor',
     isZonePastor: role === 'zone_pastor',
     isDeacon: role === 'deacon',
+    isViewer: role === 'viewer',
   }
 }
-
