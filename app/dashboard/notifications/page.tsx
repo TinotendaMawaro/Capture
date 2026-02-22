@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { Notification, NOTIFICATION_TYPE_LABELS, NOTIFICATION_TYPE_STYLES, NOTIFICATION_PRIORITY_LABELS, NotificationType, NotificationPriority } from '@/types/notification'
-import { supabase } from '@/lib/supabaseClient'
 
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([])

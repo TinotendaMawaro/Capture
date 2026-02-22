@@ -2,8 +2,13 @@
 
 import { useState } from 'react'
 
+// Define proper interface for form data
+interface RegionFormData {
+  name: string
+}
+
 interface RegionFormProps {
-  onSubmit: (data: any) => void
+  onSubmit: (data: RegionFormData) => void
 }
 
 export default function RegionForm({ onSubmit }: RegionFormProps) {
@@ -30,4 +35,3 @@ export default function RegionForm({ onSubmit }: RegionFormProps) {
     </form>
   )
 }
-

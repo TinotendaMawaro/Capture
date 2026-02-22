@@ -2,8 +2,16 @@
 
 import { useState } from 'react'
 
+// Define proper interface for form data
+interface DeaconFormData {
+  name: string
+  email: string
+  phone: string
+  zoneId: string
+}
+
 interface DeaconFormProps {
-  onSubmit: (data: any) => void
+  onSubmit: (data: DeaconFormData) => void
 }
 
 export default function DeaconForm({ onSubmit }: DeaconFormProps) {
@@ -63,4 +71,3 @@ export default function DeaconForm({ onSubmit }: DeaconFormProps) {
     </form>
   )
 }
-

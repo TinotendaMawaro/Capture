@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import supabase from '@/lib/supabaseClient'
 
 interface Attendance {
@@ -51,14 +51,10 @@ export default function AttendanceDashboard() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
   const [selectedService, setSelectedService] = useState('sunday_first')
 
-  useEffect(() => {
-    fetchAttendanceData()
-  }, [selectedDate, selectedService])
-
-  async function fetchAttendanceData() {
+  const fetchAttendanceData = useCallback(async () => {
     setLoading(true)
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('attendance')
         .select('*')
         .eq('date', selectedDate)
@@ -79,7 +75,7 @@ export default function AttendanceDashboard() {
 
         setStats({
           totalPresent: data.length,
-          averageAttendance: Math.round(data.length / 4), // Approximate
+          averageAttendance: Math.round(data.length / 4),
           byServiceType,
           byRegion,
           pastorPresence: [
@@ -91,7 +87,6 @@ export default function AttendanceDashboard() {
       }
     } catch (error) {
       console.error('Error fetching attendance data:', error)
-      // Mock data for demo
       setAttendance([])
       setStats({
         totalPresent: 156,
@@ -107,7 +102,11 @@ export default function AttendanceDashboard() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedDate, selectedService])
+
+  useEffect(() => {
+    fetchAttendanceData()
+  }, [fetchAttendanceData])
 
   const serviceTypes = [
     { value: 'sunday_first', label: 'Sunday 1st Service' },
@@ -131,7 +130,7 @@ export default function AttendanceDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">📋 Attendance Tracking</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Attendance Tracking</h1>
           <p className="text-gray-600">QR-based attendance system with real-time tracking</p>
         </div>
         <div className="flex gap-2">
@@ -139,7 +138,7 @@ export default function AttendanceDashboard() {
             onClick={fetchAttendanceData}
             className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
           >
-            🔄 Refresh
+            Refresh
           </button>
         </div>
       </div>
@@ -152,7 +151,6 @@ export default function AttendanceDashboard() {
             <h3 className="font-semibold text-purple-800">QR Card Scanning</h3>
             <p className="text-sm text-purple-700 mt-1">
               Members scan their QR cards at entry. The system verifies their ID and records attendance with timestamp.
-              Works offline - syncs when connection is restored.
             </p>
           </div>
         </div>
@@ -196,13 +194,11 @@ export default function AttendanceDashboard() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <p className="text-sm text-gray-600">Total Present Today</p>
           <p className="text-3xl font-bold text-purple-600 mt-2">{stats.totalPresent}</p>
-          <p className="text-xs text-gray-500 mt-2">Across all services</p>
         </div>
         
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <p className="text-sm text-gray-600">Average Attendance</p>
           <p className="text-3xl font-bold text-blue-600 mt-2">{stats.averageAttendance}</p>
-          <p className="text-xs text-gray-500 mt-2">Weekly average</p>
         </div>
         
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
@@ -210,15 +206,13 @@ export default function AttendanceDashboard() {
           <p className="text-3xl font-bold text-green-600 mt-2">
             {attendance.filter(a => a.is_verified).length}
           </p>
-          <p className="text-xs text-gray-500 mt-2">QR verified</p>
         </div>
       </div>
 
       {/* Service Trends */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Attendance by Service Type */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">📊 Attendance by Service</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Attendance by Service</h2>
           <div className="space-y-3">
             {Object.entries(stats.byServiceType).map(([service, count]) => (
               <div key={service} className="flex items-center justify-between">
@@ -228,24 +222,20 @@ export default function AttendanceDashboard() {
                     <div 
                       className="bg-purple-500 rounded-full h-2" 
                       style={{ width: `${(count / 200) * 100}%` }}
-                    ></div>
+                    />
                   </div>
                   <span className="font-semibold text-gray-900 w-12 text-right">{count}</span>
                 </div>
               </div>
             ))}
-            {Object.keys(stats.byServiceType).length === 0 && (
-              <p className="text-gray-500 text-center py-4">No data available</p>
-            )}
           </div>
         </div>
 
-        {/* Pastor Presence Tracking */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">👨‍🏫 Pastor Presence</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Pastor Presence</h2>
           <div className="space-y-3">
-            {stats.pastorPresence.map((pastor, index) => (
-              <div key={index} className="flex items-center justify-between">
+            {stats.pastorPresence.map((pastor, idx) => (
+              <div key={idx} className="flex items-center justify-between">
                 <span className="text-gray-600">{pastor.pastor_name}</span>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-gray-500">{pastor.present_count} services</span>
@@ -265,11 +255,11 @@ export default function AttendanceDashboard() {
 
       {/* Growth by Region */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">🌍 Attendance Growth by Region</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Attendance Growth by Region</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {Object.entries(stats.byRegion)
             .sort(([,a], [,b]) => b - a)
-            .map(([region, count], index) => (
+            .map(([region, count]) => (
               <div key={region} className="p-4 bg-gray-50 rounded-lg">
                 <div className="flex items-center justify-between mb-2">
                   <span className="font-medium text-gray-900">{region}</span>
@@ -279,19 +269,16 @@ export default function AttendanceDashboard() {
                   <div 
                     className="bg-purple-500 rounded-full h-2" 
                     style={{ width: `${(count / 100) * 100}%` }}
-                  ></div>
+                  />
                 </div>
               </div>
             ))}
-          {Object.keys(stats.byRegion).length === 0 && (
-            <p className="text-gray-500 text-center py-4 col-span-3">No data available</p>
-          )}
         </div>
       </div>
 
       {/* Recent Check-ins */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">✅ Recent Check-ins</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Check-ins</h2>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -328,7 +315,7 @@ export default function AttendanceDashboard() {
                           ? 'bg-green-100 text-green-700' 
                           : 'bg-yellow-100 text-yellow-700'
                       }`}>
-                        {record.is_verified ? '✓ Verified' : 'Pending'}
+                        {record.is_verified ? 'Verified' : 'Pending'}
                       </span>
                     </td>
                     <td className="py-3 px-4 text-sm text-gray-600">

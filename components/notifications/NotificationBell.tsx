@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Notification, NOTIFICATION_TYPE_LABELS, NOTIFICATION_TYPE_STYLES, NotificationType } from '@/types/notification'
+import { useState, useEffect, useCallback } from 'react'
+import { Notification, NOTIFICATION_TYPE_LABELS, NOTIFICATION_TYPE_STYLES } from '@/types/notification'
 import { supabase } from '@/lib/supabaseClient'
 
 interface NotificationBellProps {
@@ -14,28 +14,7 @@ export default function NotificationBell({ userId }: NotificationBellProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetchNotifications()
-    
-    // Set up real-time subscription
-    const channel = supabase
-      .channel('notifications')
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'notifications'
-      }, (payload) => {
-        setNotifications(prev => [payload.new as Notification, ...prev])
-        setUnreadCount(prev => prev + 1)
-      })
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [userId])
-
-  async function fetchNotifications() {
+  const fetchNotifications = useCallback(async () => {
     try {
       if (!userId) {
         // Mock data for demo
@@ -94,7 +73,28 @@ export default function NotificationBell({ userId }: NotificationBellProps) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [userId])
+
+  useEffect(() => {
+    fetchNotifications()
+    
+    // Set up real-time subscription
+    const channel = supabase
+      .channel('notifications')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'notifications'
+      }, (payload) => {
+        setNotifications(prev => [payload.new as Notification, ...prev])
+        setUnreadCount(prev => prev + 1)
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [userId, fetchNotifications])
 
   async function markAsRead(id: string) {
     try {

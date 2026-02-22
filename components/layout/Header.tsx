@@ -2,15 +2,27 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { signOut } from '@/lib/authHelpers'
 
 interface HeaderProps {
   title?: string
 }
 
 export default function Header({ title = 'Dashboard' }: HeaderProps) {
+  const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
   const [showProfileDropdown, setShowProfileDropdown] = useState(false)
   const [notificationCount] = useState(5)
+
+  const handleLogout = async () => {
+    try {
+      await signOut()
+      router.push('/login')
+    } catch (error) {
+      console.error('Error during logout:', error)
+    }
+  }
 
   return (
     <header className="top-header">
@@ -62,7 +74,11 @@ export default function Header({ title = 'Dashboard' }: HeaderProps) {
               ⚙️ Change Password
             </Link>
             <div className="dropdown-divider"></div>
-            <button className="dropdown-item" style={{ width: '100%', border: 'none', background: 'none', textAlign: 'left' }}>
+            <button 
+              className="dropdown-item" 
+              style={{ width: '100%', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer' }}
+              onClick={handleLogout}
+            >
               🚪 Logout
             </button>
           </div>

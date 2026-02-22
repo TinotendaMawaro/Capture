@@ -1,7 +1,7 @@
 'use client'
 
 interface DataTableProps {
-  data: any[]
+  data: Record<string, unknown>[]
   columns: { key: string; header: string }[]
 }
 
@@ -19,7 +19,7 @@ export default function DataTable({ data, columns }: DataTableProps) {
         {data.map((row, index) => (
           <tr key={index}>
             {columns.map((col) => (
-              <td key={col.key}>{row[col.key]}</td>
+              <td key={col.key}>{String(row[col.key] ?? '')}</td>
             ))}
           </tr>
         ))}
@@ -27,4 +27,3 @@ export default function DataTable({ data, columns }: DataTableProps) {
     </table>
   )
 }
-

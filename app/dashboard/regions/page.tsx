@@ -1,47 +1,141 @@
 'use client'
 
-import { useState } from 'react'
+/**
+ * Regions Management Page
+ * Lists all regions with CRUD operations
+ * Connected to Supabase API
+ */
+
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 
-// Mock data for regions
-const initialRegions = [
-  { id: 1, code: 'R01', name: 'Harare Region', zonesCount: 45, pastorsCount: 52, deaconsCount: 180, status: 'active', createdDate: '2020-01-15' },
-  { id: 2, code: 'R02', name: 'Bulawayo Region', zonesCount: 32, pastorsCount: 38, deaconsCount: 145, status: 'active', createdDate: '2020-02-20' },
-  { id: 3, code: 'R03', name: 'Mutare Region', zonesCount: 18, pastorsCount: 22, deaconsCount: 86, status: 'active', createdDate: '2021-03-10' },
-  { id: 4, code: 'R04', name: 'Gweru Region', zonesCount: 15, pastorsCount: 16, deaconsCount: 72, status: 'active', createdDate: '2021-06-05' },
-  { id: 5, code: 'R05', name: 'Masvingo Region', zonesCount: 14, pastorsCount: 12, deaconsCount: 77, status: 'pending', createdDate: '2022-01-20' },
-]
+interface Region {
+  id: string
+  region_code: string
+  name: string
+  country: string
+  description?: string
+  created_at: string
+}
+
+interface RegionStats {
+  zonesCount: number
+  pastorsCount: number
+  deaconsCount: number
+}
 
 export default function RegionsPage() {
-  const [regions, setRegions] = useState(initialRegions)
+  const [regions, setRegions] = useState<Region[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
+  const [regionStats, setRegionStats] = useState<Record<string, RegionStats>>({})
   const [showAddModal, setShowAddModal] = useState(false)
-  const [newRegion, setNewRegion] = useState({ name: '', code: '' })
+  const [newRegion, setNewRegion] = useState({
+    name: '',
+    region_code: '',
+    country: 'Zimbabwe',
+    description: ''
+  })
+  const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const response = await fetch('/api/regions')
+      const result = await response.json()
+
+      if (result.success) {
+        setRegions(result.data || [])
+        
+        // Load stats for each region
+        if (result.data && result.data.length > 0) {
+          const stats: Record<string, RegionStats> = {}
+          for (const region of result.data) {
+            const zonesRes = await fetch(`/api/zones?region_id=${region.id}`)
+            const zonesData = await zonesRes.json()
+            
+            const pastorsRes = await fetch('/api/pastors')
+            const pastorsData = await pastorsRes.json()
+            
+            const deaconsRes = await fetch('/api/deacons')
+            const deaconsData = await deaconsRes.json()
+            
+            stats[region.id] = {
+              zonesCount: zonesData.count || 0,
+              pastorsCount: pastorsData.count || 0,
+              deaconsCount: deaconsData.count || 0
+            }
+          }
+          setRegionStats(stats)
+        }
+      }
+    } catch (err) {
+      console.error('Error loading data:', err)
+      setError('Failed to load regions data')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleAddRegion = async () => {
+    if (!newRegion.name || !newRegion.region_code) {
+      alert('Please fill in required fields')
+      return
+    }
+
+    try {
+      setSubmitting(true)
+
+      const response = await fetch('/api/regions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newRegion)
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        alert('Region created successfully!')
+        setNewRegion({
+          name: '',
+          region_code: '',
+          country: 'Zimbabwe',
+          description: ''
+        })
+        setShowAddModal(false)
+        loadData()
+      } else {
+        alert(result.error || 'Failed to create region')
+      }
+    } catch (err) {
+      console.error('Error creating region:', err)
+      alert('Failed to create region')
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   const filteredRegions = regions.filter(region => {
-    const matchesSearch = region.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          region.code.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === 'all' || region.status === statusFilter
-    return matchesSearch && matchesStatus
+    const matchesSearch = 
+      region.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      region.region_code.toLowerCase().includes(searchTerm.toLowerCase())
+    
+    return matchesSearch
   })
 
-  const handleAddRegion = () => {
-    if (newRegion.name && newRegion.code) {
-      const newId = Math.max(...regions.map(r => r.id)) + 1
-      setRegions([...regions, {
-        id: newId,
-        code: newRegion.code,
-        name: newRegion.name,
-        zonesCount: 0,
-        pastorsCount: 0,
-        deaconsCount: 0,
-        status: 'pending',
-        createdDate: new Date().toISOString().split('T')[0]
-      }])
-      setNewRegion({ name: '', code: '' })
-      setShowAddModal(false)
-    }
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-gray-500">Loading regions...</div>
+      </div>
+    )
   }
 
   return (
@@ -49,11 +143,21 @@ export default function RegionsPage() {
       <div className="page-header">
         <h1>🌍 Regions</h1>
         <div className="page-header-actions">
-          <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
+          <button 
+            className="btn btn-primary" 
+            onClick={() => setShowAddModal(true)}
+          >
             ➕ Add Region
           </button>
         </div>
       </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-lg">
+          {error}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="filter-bar">
@@ -64,16 +168,6 @@ export default function RegionsPage() {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
-        <select 
-          className="form-select"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-        >
-          <option value="all">All Status</option>
-          <option value="active">Active</option>
-          <option value="pending">Pending</option>
-          <option value="inactive">Inactive</option>
-        </select>
       </div>
 
       {/* Regions Table */}
@@ -84,52 +178,72 @@ export default function RegionsPage() {
               <tr>
                 <th>Region Code</th>
                 <th>Region Name</th>
+                <th>Country</th>
                 <th>Zones</th>
                 <th>Pastors</th>
                 <th>Deacons</th>
-                <th>Status</th>
                 <th>Created</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filteredRegions.map((region) => (
-                <tr key={region.id}>
-                  <td>
-                    <strong>{region.code}</strong>
-                  </td>
-                  <td>{region.name}</td>
-                  <td>
-                    <Link href={`/dashboard/zones?region=${region.code}`} style={{ color: 'var(--color-primary)' }}>
-                      {region.zonesCount}
-                    </Link>
-                  </td>
-                  <td>
-                    <Link href={`/dashboard/pastors?region=${region.code}`} style={{ color: 'var(--color-primary)' }}>
-                      {region.pastorsCount}
-                    </Link>
-                  </td>
-                  <td>{region.deaconsCount}</td>
-                  <td>
-                    <span className={`status-badge ${region.status}`}>
-                      {region.status === 'active' ? '🟢 Active' : 
-                       region.status === 'pending' ? '🟡 Pending' : '🔴 Inactive'}
-                    </span>
-                  </td>
-                  <td>{region.createdDate}</td>
-                  <td className="actions">
-                    <Link href={`/dashboard/regions/${region.code}`} className="btn btn-sm btn-outline">
-                      View
-                    </Link>
-                    <button className="btn btn-sm btn-outline">
-                      Edit
-                    </button>
+              {filteredRegions.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="text-center py-8 text-gray-500">
+                    No regions found. Add your first region to get started.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredRegions.map((region) => (
+                  <tr key={region.id}>
+                    <td>
+                      <strong>{region.region_code}</strong>
+                    </td>
+                    <td>{region.name}</td>
+                    <td>{region.country}</td>
+                    <td>
+                      <Link 
+                        href={`/dashboard/zones?region=${region.id}`}
+                        style={{ color: 'var(--color-primary)', fontWeight: 'bold' }}
+                      >
+                        {regionStats[region.id]?.zonesCount || 0}
+                      </Link>
+                    </td>
+                    <td>
+                      <Link 
+                        href={`/dashboard/pastors?region=${region.id}`}
+                        style={{ color: 'var(--color-primary)', fontWeight: 'bold' }}
+                      >
+                        {regionStats[region.id]?.pastorsCount || 0}
+                      </Link>
+                    </td>
+                    <td>{regionStats[region.id]?.deaconsCount || 0}</td>
+                    <td>{new Date(region.created_at).toLocaleDateString()}</td>
+                    <td className="actions">
+                      <Link 
+                        href={`/dashboard/regions/${region.region_code}`} 
+                        className="btn btn-sm btn-outline"
+                      >
+                        View
+                      </Link>
+                      <Link 
+                        href={`/dashboard/map?region=${region.region_code}`}
+                        className="btn btn-sm btn-outline"
+                      >
+                        Map
+                      </Link>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Stats Footer */}
+      <div className="mt-4 text-sm text-gray-600">
+        Showing {filteredRegions.length} of {regions.length} regions
       </div>
 
       {/* Add Region Modal */}
@@ -146,7 +260,7 @@ export default function RegionsPage() {
           justifyContent: 'center',
           zIndex: 1000
         }}>
-          <div className="card" style={{ width: '400px', maxWidth: '90%' }}>
+          <div className="card" style={{ width: '450px', maxWidth: '90%' }}>
             <div className="card-header">
               <h3 className="card-title">Add New Region</h3>
               <button 
@@ -158,17 +272,18 @@ export default function RegionsPage() {
             </div>
             <div className="card-body">
               <div className="form-group">
-                <label className="form-label">Region Code</label>
+                <label className="form-label">Region Code *</label>
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="e.g., R06"
-                  value={newRegion.code}
-                  onChange={(e) => setNewRegion({ ...newRegion, code: e.target.value })}
+                  placeholder="e.g., ZW11"
+                  value={newRegion.region_code}
+                  onChange={(e) => setNewRegion({ ...newRegion, region_code: e.target.value.toUpperCase() })}
+                  maxLength={4}
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Region Name</label>
+                <label className="form-label">Region Name *</label>
                 <input
                   type="text"
                   className="form-input"
@@ -177,13 +292,41 @@ export default function RegionsPage() {
                   onChange={(e) => setNewRegion({ ...newRegion, name: e.target.value })}
                 />
               </div>
+              <div className="form-group">
+                <label className="form-label">Country</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g., Zimbabwe"
+                  value={newRegion.country}
+                  onChange={(e) => setNewRegion({ ...newRegion, country: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Description</label>
+                <textarea
+                  className="form-input"
+                  placeholder="Brief description of the region"
+                  value={newRegion.description}
+                  onChange={(e) => setNewRegion({ ...newRegion, description: e.target.value })}
+                  rows={3}
+                />
+              </div>
             </div>
             <div className="card-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-              <button className="btn btn-outline" onClick={() => setShowAddModal(false)}>
+              <button 
+                className="btn btn-outline" 
+                onClick={() => setShowAddModal(false)}
+                disabled={submitting}
+              >
                 Cancel
               </button>
-              <button className="btn btn-primary" onClick={handleAddRegion}>
-                Add Region
+              <button 
+                className="btn btn-primary" 
+                onClick={handleAddRegion}
+                disabled={submitting}
+              >
+                {submitting ? 'Creating...' : 'Add Region'}
               </button>
             </div>
           </div>

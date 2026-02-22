@@ -40,6 +40,7 @@ export default function Sidebar() {
     { 
       section: 'System',
       items: [
+        { href: '/dashboard/admin', label: '🎛️ Admin Panel', icon: '🎛️' },
         { href: '/dashboard/settings', label: '⚙ System Settings', icon: '⚙' },
         { href: '/dashboard/users', label: '🔐 User Management', icon: '🔐' },
         { href: '/dashboard/audit', label: '📜 Audit Logs', icon: '📜' },

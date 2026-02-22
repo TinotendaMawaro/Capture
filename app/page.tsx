@@ -1,9 +1,7 @@
+import { redirect } from 'next/navigation'
+
 export default function Home() {
-  return (
-    <main>
-      <h1>Church Management System</h1>
-      <p>Welcome to the church management application</p>
-    </main>
-  )
+  // Redirect root to the login page
+  redirect('/login')
 }
 

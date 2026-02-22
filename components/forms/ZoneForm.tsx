@@ -2,8 +2,14 @@
 
 import { useState } from 'react'
 
+// Define proper interface for form data
+interface ZoneFormData {
+  name: string
+  regionId: string
+}
+
 interface ZoneFormProps {
-  onSubmit: (data: any) => void
+  onSubmit: (data: ZoneFormData) => void
 }
 
 export default function ZoneForm({ onSubmit }: ZoneFormProps) {
@@ -42,4 +48,3 @@ export default function ZoneForm({ onSubmit }: ZoneFormProps) {
     </form>
   )
 }
-
