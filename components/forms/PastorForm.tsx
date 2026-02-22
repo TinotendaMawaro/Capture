@@ -2,8 +2,16 @@
 
 import { useState } from 'react'
 
+// Define proper interface for form data
+interface PastorFormData {
+  name: string
+  email: string
+  phone: string
+  zoneId: string
+}
+
 interface PastorFormProps {
-  onSubmit: (data: any) => void
+  onSubmit: (data: PastorFormData) => void
 }
 
 export default function PastorForm({ onSubmit }: PastorFormProps) {
@@ -63,4 +71,3 @@ export default function PastorForm({ onSubmit }: PastorFormProps) {
     </form>
   )
 }
-

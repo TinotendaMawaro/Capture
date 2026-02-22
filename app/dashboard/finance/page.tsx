@@ -56,7 +56,7 @@ export default function FinanceDashboard() {
   async function fetchFinancialData() {
     setLoading(true)
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('financial_records')
         .select('*')
         .order('created_at', { ascending: false })
@@ -89,8 +89,8 @@ export default function FinanceDashboard() {
           byCategory
         })
       }
-    } catch (error) {
-      console.error('Error fetching financial data:', error)
+    } catch (err) {
+      console.error('Error fetching financial data:', err)
       // Mock data for demo
       setRecords([])
       setSummary({
@@ -108,7 +108,7 @@ export default function FinanceDashboard() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     try {
-      const { error } = await supabase.from('financial_records').insert({
+      const { error: insertError } = await supabase.from('financial_records').insert({
         zone_id: formData.zone_id,
         region_id: formData.region_id,
         category: formData.category,
@@ -121,11 +121,11 @@ export default function FinanceDashboard() {
         status: 'pending'
       })
 
-      if (error) throw error
+      if (insertError) throw insertError
       setShowForm(false)
       fetchFinancialData()
-    } catch (error) {
-      console.error('Error creating financial record:', error)
+    } catch (err) {
+      console.error('Error creating financial record:', err)
       alert('Failed to create record. Please try again.')
     }
   }

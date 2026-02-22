@@ -1,73 +1,181 @@
 'use client'
 
-import { useState } from 'react'
+/**
+ * Zones Management Page
+ * Lists all zones with CRUD operations
+ * Connected to Supabase API
+ */
+
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 
-// Mock data for zones
-const initialZones = [
-  { id: 1, code: 'R01001', name: 'Harare Central', region: 'Harare Region', pastor: 'Pastor John Moyo', members: 250, status: 'active' },
-  { id: 2, code: 'R01002', name: 'Harare East', region: 'Harare Region', pastor: 'Pastor Mary Ncube', members: 180, status: 'active' },
-  { id: 3, code: 'R01003', name: 'Harare West', region: 'Harare Region', pastor: 'Pastor Peter Dube', members: 165, status: 'active' },
-  { id: 4, code: 'R02001', name: 'Bulawayo Central', region: 'Bulawayo Region', pastor: 'Pastor Samuel Ndlovu', members: 220, status: 'active' },
-  { id: 5, code: 'R02002', name: 'Bulawayo North', region: 'Bulawayo Region', pastor: 'Pastor David Moyo', members: 145, status: 'pending' },
-  { id: 6, code: 'R03001', name: 'Mutare Central', region: 'Mutare Region', pastor: 'Pastor Joseph Magaya', members: 120, status: 'active' },
-  { id: 7, code: 'R04001', name: 'Gweru Central', region: 'Gweru Region', pastor: 'Pastor Brighton Chiromo', members: 95, status: 'active' },
-  { id: 8, code: 'R05001', name: 'Masvingo Central', region: 'Masvingo Region', pastor: 'Pastor Michael Zhou', members: 88, status: 'inactive' },
-]
+interface Zone {
+  id: string
+  region_id: string
+  zone_code: string
+  full_code: string
+  name: string
+  address?: string
+  city?: string
+  latitude?: number
+  longitude?: number
+  contact_person?: string
+  contact_email?: string
+  contact_phone?: string
+  created_at: string
+  regions?: {
+    id: string
+    name: string
+    region_code: string
+    country?: string
+  }
+}
+
+interface Region {
+  id: string
+  name: string
+  region_code: string
+}
 
 export default function ZonesPage() {
-  const [zones, setZones] = useState(initialZones)
+  const [zones, setZones] = useState<Zone[]>([])
+  const [regions, setRegions] = useState<Region[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [regionFilter, setRegionFilter] = useState('all')
-  const [statusFilter, setStatusFilter] = useState('all')
   const [showAddModal, setShowAddModal] = useState(false)
-  const [newZone, setNewZone] = useState({ name: '', code: '', region: '' })
-
-  const filteredZones = zones.filter(zone => {
-    const matchesSearch = zone.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          zone.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          zone.pastor.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesRegion = regionFilter === 'all' || zone.region === regionFilter
-    const matchesStatus = statusFilter === 'all' || zone.status === statusFilter
-    return matchesSearch && matchesRegion && matchesStatus
+  const [newZone, setNewZone] = useState({
+    name: '',
+    region_id: '',
+    city: '',
+    contact_person: '',
+    contact_phone: ''
   })
+  const [submitting, setSubmitting] = useState(false)
 
-  const handleAddZone = () => {
-    if (newZone.name && newZone.code && newZone.region) {
-      const newId = Math.max(...zones.map(z => z.id)) + 1
-      setZones([...zones, {
-        id: newId,
-        code: newZone.code,
-        name: newZone.name,
-        region: newZone.region,
-        pastor: 'Not Assigned',
-        members: 0,
-        status: 'pending'
-      }])
-      setNewZone({ name: '', code: '', region: '' })
-      setShowAddModal(false)
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const [zonesRes, regionsRes] = await Promise.all([
+        fetch('/api/zones'),
+        fetch('/api/regions')
+      ])
+
+      const zonesData = await zonesRes.json()
+      const regionsData = await regionsRes.json()
+
+      if (zonesData.success) {
+        setZones(zonesData.data || [])
+      }
+
+      if (regionsData.success) {
+        setRegions(regionsData.data || [])
+      }
+    } catch (err) {
+      console.error('Error loading data:', err)
+      setError('Failed to load zones data')
+    } finally {
+      setLoading(false)
     }
   }
 
-  const regions = ['Harare Region', 'Bulawayo Region', 'Mutare Region', 'Gweru Region', 'Masvingo Region']
+  const handleAddZone = async () => {
+    if (!newZone.name || !newZone.region_id) {
+      alert('Please fill in required fields')
+      return
+    }
+
+    try {
+      setSubmitting(true)
+
+      const response = await fetch('/api/zones', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newZone)
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        alert('Zone created successfully!')
+        setNewZone({
+          name: '',
+          region_id: '',
+          city: '',
+          contact_person: '',
+          contact_phone: ''
+        })
+        setShowAddModal(false)
+        loadData()
+      } else {
+        alert(result.error || 'Failed to create zone')
+      }
+    } catch (err) {
+      console.error('Error creating zone:', err)
+      alert('Failed to create zone')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const filteredZones = zones.filter(zone => {
+    const matchesSearch = 
+      zone.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      zone.full_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (zone.contact_person || '').toLowerCase().includes(searchTerm.toLowerCase())
+    
+    const matchesRegion = regionFilter === 'all' || zone.region_id === regionFilter
+    
+    return matchesSearch && matchesRegion
+  })
+
+  const getRegionName = (regionId: string) => {
+    const region = regions.find(r => r.id === regionId)
+    return region?.name || 'Unknown'
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-gray-500">Loading zones...</div>
+      </div>
+    )
+  }
 
   return (
     <div className="animate-fadeIn">
       <div className="page-header">
         <h1>⛪ Zones</h1>
         <div className="page-header-actions">
-          <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
+          <button 
+            className="btn btn-primary" 
+            onClick={() => setShowAddModal(true)}
+          >
             ➕ Add Zone
           </button>
         </div>
       </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-lg">
+          {error}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="filter-bar">
         <input
           type="text"
           className="form-input"
-          placeholder="Search by name, code, or pastor..."
+          placeholder="Search by name, code, or contact..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
@@ -77,17 +185,9 @@ export default function ZonesPage() {
           onChange={(e) => setRegionFilter(e.target.value)}
         >
           <option value="all">All Regions</option>
-          {regions.map(r => <option key={r} value={r}>{r}</option>)}
-        </select>
-        <select 
-          className="form-select"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-        >
-          <option value="all">All Status</option>
-          <option value="active">Active</option>
-          <option value="pending">Pending</option>
-          <option value="inactive">Inactive</option>
+          {regions.map(r => (
+            <option key={r.id} value={r.id}>{r.name}</option>
+          ))}
         </select>
       </div>
 
@@ -100,41 +200,55 @@ export default function ZonesPage() {
                 <th>Zone Code</th>
                 <th>Zone Name</th>
                 <th>Region</th>
-                <th>Pastor</th>
-                <th>Members</th>
-                <th>Status</th>
+                <th>City</th>
+                <th>Contact Person</th>
+                <th>Contact Phone</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filteredZones.map((zone) => (
-                <tr key={zone.id}>
-                  <td>
-                    <strong>{zone.code}</strong>
-                  </td>
-                  <td>{zone.name}</td>
-                  <td>{zone.region}</td>
-                  <td>{zone.pastor}</td>
-                  <td>{zone.members}</td>
-                  <td>
-                    <span className={`status-badge ${zone.status}`}>
-                      {zone.status === 'active' ? '🟢 Active' : 
-                       zone.status === 'pending' ? '🟡 Pending' : '🔴 Inactive'}
-                    </span>
-                  </td>
-                  <td className="actions">
-                    <Link href={`/dashboard/zones/${zone.code}`} className="btn btn-sm btn-outline">
-                      View
-                    </Link>
-                    <button className="btn btn-sm btn-outline">
-                      Edit
-                    </button>
+              {filteredZones.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="text-center py-8 text-gray-500">
+                    No zones found. Add your first zone to get started.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredZones.map((zone) => (
+                  <tr key={zone.id}>
+                    <td>
+                      <strong>{zone.full_code}</strong>
+                    </td>
+                    <td>{zone.name}</td>
+                    <td>{getRegionName(zone.region_id)}</td>
+                    <td>{zone.city || '-'}</td>
+                    <td>{zone.contact_person || '-'}</td>
+                    <td>{zone.contact_phone || '-'}</td>
+                    <td className="actions">
+                      <Link 
+                        href={`/dashboard/zones/${zone.full_code}`} 
+                        className="btn btn-sm btn-outline"
+                      >
+                        View
+                      </Link>
+                      <Link 
+                        href={`/dashboard/map?zone=${zone.full_code}`}
+                        className="btn btn-sm btn-outline"
+                      >
+                        Map
+                      </Link>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Stats Footer */}
+      <div className="mt-4 text-sm text-gray-600">
+        Showing {filteredZones.length} of {zones.length} zones
       </div>
 
       {/* Add Zone Modal */}
@@ -151,7 +265,7 @@ export default function ZonesPage() {
           justifyContent: 'center',
           zIndex: 1000
         }}>
-          <div className="card" style={{ width: '450px', maxWidth: '90%' }}>
+          <div className="card" style={{ width: '500px', maxWidth: '90%' }}>
             <div className="card-header">
               <h3 className="card-title">Add New Zone</h3>
               <button 
@@ -163,17 +277,7 @@ export default function ZonesPage() {
             </div>
             <div className="card-body">
               <div className="form-group">
-                <label className="form-label">Zone Code</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="e.g., R06001"
-                  value={newZone.code}
-                  onChange={(e) => setNewZone({ ...newZone, code: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Zone Name</label>
+                <label className="form-label">Zone Name *</label>
                 <input
                   type="text"
                   className="form-input"
@@ -183,23 +287,63 @@ export default function ZonesPage() {
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Region</label>
+                <label className="form-label">Region *</label>
                 <select
                   className="form-select"
-                  value={newZone.region}
-                  onChange={(e) => setNewZone({ ...newZone, region: e.target.value })}
+                  value={newZone.region_id}
+                  onChange={(e) => setNewZone({ ...newZone, region_id: e.target.value })}
                 >
                   <option value="">Select Region</option>
-                  {regions.map(r => <option key={r} value={r}>{r}</option>)}
+                  {regions.map(r => (
+                    <option key={r.id} value={r.id}>{r.name}</option>
+                  ))}
                 </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">City</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g., Chitungwiza"
+                  value={newZone.city}
+                  onChange={(e) => setNewZone({ ...newZone, city: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Contact Person</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Name of contact person"
+                  value={newZone.contact_person}
+                  onChange={(e) => setNewZone({ ...newZone, contact_person: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Contact Phone</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g., +263 77 123 4567"
+                  value={newZone.contact_phone}
+                  onChange={(e) => setNewZone({ ...newZone, contact_phone: e.target.value })}
+                />
               </div>
             </div>
             <div className="card-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-              <button className="btn btn-outline" onClick={() => setShowAddModal(false)}>
+              <button 
+                className="btn btn-outline" 
+                onClick={() => setShowAddModal(false)}
+                disabled={submitting}
+              >
                 Cancel
               </button>
-              <button className="btn btn-primary" onClick={handleAddZone}>
-                Add Zone
+              <button 
+                className="btn btn-primary" 
+                onClick={handleAddZone}
+                disabled={submitting}
+              >
+                {submitting ? 'Creating...' : 'Add Zone'}
               </button>
             </div>
           </div>
